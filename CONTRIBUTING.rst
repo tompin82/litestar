@@ -105,7 +105,8 @@ To run or build the docs locally, you need to first install the required depende
 
 ``poetry install --with docs``
 
-Then you can serve the documentation with ``make docs-serve``, or build them with ``make docs``
+Then you can serve the documentation by entering the poetry with shell: ``poetry shell`` followed by ``make docs-serve``
+to serve the docs, or only build with ``make docs``.
 
 Writing and editing docs
 ++++++++++++++++++++++++

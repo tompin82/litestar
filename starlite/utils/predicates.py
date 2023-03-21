@@ -19,23 +19,19 @@ from typing import (
     Sequence,
     Set,
     Tuple,
-    Type,
     TypeVar,
 )
 
 from typing_extensions import (
-    Annotated,
-    NotRequired,
     ParamSpec,
-    Required,
     TypeGuard,
     get_args,
-    get_origin,
     is_typeddict,
 )
 
 from starlite.types import DataclassProtocol, Empty
 from starlite.types.builtin_types import UNION_TYPES, NoneType
+from starlite.utils.typing import get_origin_or_inner_type
 
 if TYPE_CHECKING:
     from starlite.types.builtin_types import (
@@ -50,21 +46,6 @@ except ImportError:  # pragma: no cover
 
 P = ParamSpec("P")
 T = TypeVar("T")
-
-
-def get_origin_or_inner_type(annotation: Any) -> Any:
-    """Get origin or unwrap it. Returns None for non-generic types.
-
-    Args:
-        annotation: A type annotation.
-
-    Returns:
-        Any type.
-    """
-
-    if origin := get_origin(annotation):
-        return origin if origin not in (Annotated, Required, NotRequired) else get_args(annotation)[0]
-    return None
 
 
 def is_class_and_subclass(annotation: Any, t_type: type[T]) -> TypeGuard[type[T]]:
@@ -238,7 +219,7 @@ def is_typed_dict(annotation: Any) -> TypeGuard[TypedDictClass]:
     return is_typeddict(annotation)
 
 
-def is_pydantic_model_class(annotation: Any) -> "TypeGuard[Type[BaseModel]]":  # pyright: ignore
+def is_pydantic_model_class(annotation: Any) -> "TypeGuard[type[BaseModel]]":  # pyright: ignore
     """Given a type annotation determine if the annotation is a subclass of pydantic's BaseModel.
 
     Args:

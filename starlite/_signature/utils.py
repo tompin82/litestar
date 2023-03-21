@@ -1,39 +1,38 @@
 from __future__ import annotations
 
-import sys
-import typing
-from inspect import isclass, ismethod
-from typing import TYPE_CHECKING, Any, cast
+from inspect import getmembers, isclass
+from typing import TYPE_CHECKING, Any, Literal, cast
 
-from typing_extensions import get_type_hints
-
-from starlite.connection import Request, WebSocket
-from starlite.datastructures import Headers, ImmutableState, State
+from starlite._signature.parsing.utils import parse_fn_signature
 from starlite.exceptions import ImproperlyConfiguredException
-from starlite.types import Receive, Scope, Send, WebSocketScope
-
-__all__ = ("get_fn_type_hints", "get_signature_model")
-
+from starlite.types import AnyCallable, Empty
+from starlite.utils.helpers import unwrap_partial
 
 if TYPE_CHECKING:
-    from starlite._signature.models import SignatureModel
+    from starlite._signature.models.base import SignatureModel
+    from starlite.plugins import SerializationPluginProtocol
+
+try:
+    from starlite._signature.models.pydantic_signature_model import PydanticSignatureModel
+except ImportError:
+    PydanticSignatureModel = Empty  # type: ignore
 
 
-_GLOBAL_NAMES = {
-    "Headers": Headers,
-    "ImmutableState": ImmutableState,
-    "Receive": Receive,
-    "Request": Request,
-    "Scope": Scope,
-    "Send": Send,
-    "State": State,
-    "WebSocket": WebSocket,
-    "WebSocketScope": WebSocketScope,
-}
-"""A mapping of names used for handler signature forward-ref resolution.
+try:
+    from starlite._signature.models.attrs_signature_model import AttrsSignatureModel
+except ImportError:
+    AttrsSignatureModel = Empty  # type: ignore
 
-This allows users to include these names within an `if TYPE_CHECKING:` block in their handler module.
-"""
+try:
+    import pydantic
+
+    pydantic_types: tuple[Any, ...] = tuple(
+        cls for _, cls in getmembers(pydantic.types, isclass) if "pydantic.types" in repr(cls)
+    )
+except ImportError:
+    getmembers = ()  # type: ignore
+
+__all__ = ("create_signature_model", "get_signature_model")
 
 
 def get_signature_model(value: Any) -> type[SignatureModel]:
@@ -44,35 +43,56 @@ def get_signature_model(value: Any) -> type[SignatureModel]:
         raise ImproperlyConfiguredException(f"The 'signature_model' attribute for {value} is not set") from e
 
 
-def get_fn_type_hints(fn: Any, namespace: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Resolve type hints for ``fn``.
+def create_signature_model(
+    dependency_name_set: set[str],
+    fn: AnyCallable,
+    plugins: list[SerializationPluginProtocol],
+    preferred_validation_backend: Literal["pydantic", "attrs"],
+    signature_namespace: dict[str, Any],
+) -> type[SignatureModel]:
+    """Create a model for a callable's signature. The model can than be used to parse and validate before passing it to
+    the callable.
 
     Args:
-        fn: Thing that is having its signature modelled.
-        namespace: Extra names for resolution of forward references.
+        dependency_name_set: A set of dependency names
+        fn: A callable.
+        plugins: A list of plugins.
+        preferred_validation_backend: Validation/Parsing backend to prefer, if installed
+        signature_namespace: mapping of names to types for forward reference resolution
 
     Returns:
-        Mapping of names to types.
+        A signature model.
     """
-    fn_to_inspect: Any = fn
+    is_pydantic_installed = PydanticSignatureModel is not Empty  # type: ignore[comparison-overlap]
+    is_attrs_installed = AttrsSignatureModel is not Empty  # type: ignore[comparison-overlap]
 
-    if isclass(fn_to_inspect):
-        fn_to_inspect = fn_to_inspect.__init__
+    unwrapped_fn = cast("AnyCallable", unwrap_partial(fn))
+    fn_name = getattr(fn, "__name__", "anonymous")
+    fn_module = getattr(fn, "__module__", None)
 
-    # detect objects that are not functions and that have a `__call__` method
-    if callable(fn_to_inspect) and ismethod(fn_to_inspect.__call__):
-        fn_to_inspect = fn_to_inspect.__call__
+    if fn_name == "<lambda>":
+        fn_name = "anonymous"
 
-    # inspect the underlying function for methods
-    if hasattr(fn_to_inspect, "__func__"):
-        fn_to_inspect = fn_to_inspect.__func__
+    parsed_params, return_annotation, field_plugin_mappings, dependency_names = parse_fn_signature(
+        dependency_name_set=dependency_name_set,
+        fn=unwrapped_fn,
+        plugins=plugins,
+        signature_namespace=signature_namespace,
+    )
 
-    # Order important. If a starlite name has been overridden in the function module, we want
-    # to use that instead of the starlite one.
-    namespace = {
-        **_GLOBAL_NAMES,
-        **vars(typing),
-        **vars(sys.modules[fn_to_inspect.__module__]),
-        **(namespace or {}),
-    }
-    return get_type_hints(fn_to_inspect, globalns=namespace, include_extras=True)
+    should_prefer_pydantic = is_pydantic_installed and (
+        preferred_validation_backend == "pydantic"
+        or not is_attrs_installed
+        or any(p.annotation in pydantic_types or hasattr(p.annotation, "__get_validators__") for p in parsed_params)
+    )
+
+    model_class = cast("SignatureModel", PydanticSignatureModel if should_prefer_pydantic else AttrsSignatureModel)
+
+    return model_class.create(
+        fn_name=fn_name,
+        fn_module=fn_module,
+        parsed_params=parsed_params,
+        return_annotation=return_annotation,
+        field_plugin_mappings=field_plugin_mappings,
+        dependency_names={*dependency_name_set, *dependency_names},
+    )

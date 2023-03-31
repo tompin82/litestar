@@ -23,10 +23,12 @@ class ErrorMessage(TypedDict):
 class SignatureModel(ABC):
     """Base model for Signature modelling."""
 
-    dependency_name_set: ClassVar[set[str]]
-    field_plugin_mappings: ClassVar[dict[str, PluginMapping]]
-    return_annotation: ClassVar[Any]
-    fields: ClassVar[dict[str, SignatureField]]
+    __slots__ = ()
+
+    _dependency_name_set: ClassVar[set[str]]
+    _field_plugin_mappings: ClassVar[dict[str, PluginMapping]]
+    _return_annotation: ClassVar[Any]
+    _signature_fields: ClassVar[dict[str, SignatureField]]
 
     @classmethod
     def _create_exception(cls, connection: ASGIConnection, messages: list[ErrorMessage]) -> Exception:
@@ -42,7 +44,7 @@ class SignatureModel(ABC):
         """
         method = connection.method if hasattr(connection, "method") else ScopeType.WEBSOCKET  # pyright: ignore
         if client_errors := [
-            err_message for err_message in messages if err_message["key"] not in cls.dependency_name_set
+            err_message for err_message in messages if err_message["key"] not in cls._dependency_name_set
         ]:
             return ValidationException(detail=f"Validation failed for {method} {connection.url}", extra=client_errors)
         return InternalServerException(
@@ -73,16 +75,6 @@ class SignatureModel(ABC):
         for this.
 
         Returns: A dictionary of string keyed values.
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abstractmethod
-    def populate_signature_fields(cls) -> None:
-        """Populate the class signature fields.
-
-        Returns:
-            None.
         """
         raise NotImplementedError
 

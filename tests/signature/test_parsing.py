@@ -115,7 +115,7 @@ def test_create_function_signature_model_parameter_parsing(
         preferred_validation_backend=preferred_validation_backend,
         signature_namespace={},
     )
-    fields = model.fields
+    fields = model._signature_fields
     assert fields["a"].field_type is int
     assert not fields["a"].is_optional
     assert fields["b"].field_type is str
@@ -302,8 +302,8 @@ def test_signature_field_is_non_string_iterable(preferred_validation_backend: Li
         signature_namespace={},
     )
 
-    assert model.fields["a"].is_non_string_iterable
-    assert model.fields["b"].is_non_string_iterable
+    assert model._signature_fields["a"].is_non_string_iterable
+    assert model._signature_fields["b"].is_non_string_iterable
 
 
 @pytest.mark.parametrize("preferred_validation_backend", ("attrs", "pydantic"))
@@ -319,8 +319,8 @@ def test_signature_field_is_non_string_sequence(preferred_validation_backend: Li
         signature_namespace={},
     )
 
-    assert model.fields["a"].is_non_string_sequence
-    assert model.fields["b"].is_non_string_sequence
+    assert model._signature_fields["a"].is_non_string_sequence
+    assert model._signature_fields["b"].is_non_string_sequence
 
 
 def test_parsed_signature_model_from_parameter_resolves_forward_ref() -> None:

@@ -39,9 +39,14 @@ if TYPE_CHECKING:
     )
 
 try:
-    from pydantic import BaseModel
+    import pydantic
 except ImportError:  # pragma: no cover
-    BaseModel = Empty  # type: ignore
+    pydantic = Empty  # type: ignore
+
+try:
+    import attrs
+except ImportError:  # pragma: no cover
+    attrs = Empty  # type: ignore
 
 
 P = ParamSpec("P")
@@ -229,11 +234,11 @@ def is_pydantic_model_class(annotation: Any) -> "TypeGuard[type[BaseModel]]":  #
         A typeguard determining whether the type is :data:`BaseModel pydantic.BaseModel>`.
     """
     if BaseModel is not Empty:  # type: ignore[comparison-overlap]
-        return is_class_and_subclass(annotation, BaseModel)
+        return is_class_and_subclass(annotation, pydantic.BaseModel)
     return False  # pragma: no cover
 
 
-def is_pydantic_model_instance(annotation: Any) -> "TypeGuard[BaseModel]":  # pyright: ignore
+def is_pydantic_model_instance(annotation: Any) -> "TypeGuard[pydantic.BaseModel]":  # pyright: ignore
     """Given a type annotation determine if the annotation is an instance of pydantic's BaseModel.
 
     Args:
@@ -243,5 +248,36 @@ def is_pydantic_model_instance(annotation: Any) -> "TypeGuard[BaseModel]":  # py
         A typeguard determining whether the type is :data:`BaseModel pydantic.BaseModel>`.
     """
     if BaseModel is not Empty:  # type: ignore[comparison-overlap]
-        return isinstance(annotation, BaseModel)
+        return isinstance(annotation, pydantic.BaseModel)
     return False  # pragma: no cover
+
+
+def is_attrs_class(annotation: Any) -> TypeGuard["attrs.AttrsInstance"]:
+    """Given a type annotation determine if the annotation is a class that includes an attrs attribute.
+
+    Args:
+        annotation: A type.
+
+    Returns:
+        A typeguard determining whether the type is an attrs class.
+    """
+    if attrs is not Empty:  # type: ignore[comparison-overlap]
+        return attrs.has(annotation)
+    return False  # pragma: no cover
+
+
+def is_data_container_class(annotation: Any) -> bool:
+    """Determine whether the given value is a data container.
+
+    Args:
+        annotation: A type.
+
+    Returns:
+        A boolean
+    """
+    return (
+        is_dataclass_class(annotation)
+        or is_pydantic_model_class(annotation)
+        or is_attrs_class(annotation)
+        or is_typed_dict(annotation)
+    )

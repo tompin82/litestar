@@ -263,6 +263,8 @@ def _create_validators(
 class AttrsSignatureModel(SignatureModel):
     """Model that represents a function signature that uses a pydantic specific type or types."""
 
+    __slots__ = ("dependency_name_set", "field_plugin_mappings", "return_annotation", "fields")
+
     @classmethod
     def parse_values_from_connection_kwargs(cls, connection: ASGIConnection, **kwargs: Any) -> dict[str, Any]:
         try:
@@ -274,19 +276,6 @@ class AttrsSignatureModel(SignatureModel):
 
     def to_dict(self) -> dict[str, Any]:
         return attrs.asdict(self)
-
-    @classmethod
-    def populate_signature_fields(cls) -> None:
-        cls.fields = {
-            k: SignatureField.create(
-                field_type=attribute.type,
-                name=k,
-                default_value=attribute.default if attribute.default is not attr.NOTHING else Empty,
-                kwarg_model=attribute.metadata.get("kwargs_model", None) if attribute.metadata else None,
-                extra=attribute.metadata or None,
-            )
-            for k, attribute in attrs.fields_dict(cls).items()
-        }
 
     @classmethod
     def create(
@@ -336,8 +325,18 @@ class AttrsSignatureModel(SignatureModel):
             slots=True,
             kw_only=True,
         )
-        model.return_annotation = return_annotation  # pyright: ignore
-        model.field_plugin_mappings = field_plugin_mappings  # pyright: ignore
-        model.dependency_name_set = dependency_names  # pyright: ignore
-        model.populate_signature_fields()  # pyright: ignore
+
+        model._return_annotation = return_annotation  # pyright: ignore
+        model._field_plugin_mappings = field_plugin_mappings  # pyright: ignore
+        model._dependency_name_set = dependency_names  # pyright: ignore
+        model._signature_fields = {
+            k: SignatureField.create(
+                field_type=attribute.type,
+                name=k,
+                default_value=attribute.default if attribute.default is not attr.NOTHING else Empty,
+                kwarg_model=attribute.metadata.get("kwargs_model", None) if attribute.metadata else None,
+                extra=attribute.metadata or None,
+            )
+            for k, attribute in attrs.fields_dict(model).items()
+        }
         return model

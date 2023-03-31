@@ -3,6 +3,7 @@ from __future__ import annotations
 from inspect import getmembers, isclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+from starlite._signature.models.default_signature_model import DefaultSignatureModel
 from starlite._signature.parsing.utils import parse_fn_signature
 from starlite.exceptions import ImproperlyConfiguredException
 from starlite.types import AnyCallable, Empty
@@ -88,7 +89,7 @@ def create_signature_model(
 
     model_class = cast("SignatureModel", PydanticSignatureModel if should_prefer_pydantic else AttrsSignatureModel)
 
-    return model_class.create(
+    return DefaultSignatureModel.create(
         fn_name=fn_name,
         fn_module=fn_module,
         parsed_params=parsed_params,

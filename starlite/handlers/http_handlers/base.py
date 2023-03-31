@@ -414,7 +414,7 @@ class HTTPRouteHandler(BaseRouteHandler["HTTPRouteHandler"]):
             cookies = self.resolve_response_cookies()
             type_encoders = self.resolve_type_encoders()
 
-            return_annotation = get_signature_model(self).return_annotation
+            return_annotation = get_signature_model(self)._return_annotation
 
             if before_request_handler := self.resolve_before_request():
                 before_request_handler_signature = Signature.from_callable(before_request_handler)

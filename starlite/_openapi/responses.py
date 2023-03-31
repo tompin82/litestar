@@ -70,7 +70,7 @@ def create_success_response(
     schemas: dict[str, "Schema"],
 ) -> OpenAPIResponse:
     """Create the schema for a success response."""
-    return_annotation = get_signature_model(route_handler).return_annotation
+    return_annotation = get_signature_model(route_handler)._return_annotation
     default_descriptions: dict[Any, str] = {
         Stream: "Stream Response",
         Redirect: "Redirect Response",

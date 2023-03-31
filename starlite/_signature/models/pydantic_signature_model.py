@@ -63,7 +63,7 @@ class PydanticSignatureModel(SignatureModel, BaseModel):
             The plugin value, if available.
         """
         value = self.__getattribute__(key)
-        mapping = self.field_plugin_mappings.get(key)
+        mapping = self._field_plugin_mappings.get(key)
         return mapping.get_model_instance_for_value(value) if mapping else value
 
     def to_dict(self) -> dict[str, Any]:
@@ -72,7 +72,7 @@ class PydanticSignatureModel(SignatureModel, BaseModel):
 
         Returns: A dictionary of string keyed values.
         """
-        if self.field_plugin_mappings:
+        if self._field_plugin_mappings:
             return {key: self._resolve_field_value(key) for key in self.__fields__}
         return {key: self.__getattribute__(key) for key in self.__fields__}
 
@@ -112,15 +112,6 @@ class PydanticSignatureModel(SignatureModel, BaseModel):
             kwarg_model=kwarg_model,
             name=model_field.name,
         )
-
-    @classmethod
-    def populate_signature_fields(cls) -> None:
-        """Populate the class signature fields.
-
-        Returns:
-            None.
-        """
-        cls.fields = {k: cls.signature_field_from_model_field(v) for k, v in cls.__fields__.items()}
 
     @classmethod
     def create(
@@ -180,8 +171,10 @@ class PydanticSignatureModel(SignatureModel, BaseModel):
             __module__=fn_module or "pydantic.main",
             **field_definitions,
         )
-        model.return_annotation = return_annotation
-        model.field_plugin_mappings = field_plugin_mappings
-        model.dependency_name_set = dependency_names
-        model.populate_signature_fields()
+
+        model._return_annotation = return_annotation
+        model._field_plugin_mappings = field_plugin_mappings
+        model._dependency_name_set = dependency_names
+        model._signature_fields = {k: model.signature_field_from_model_field(v) for k, v in model.__fields__.items()}
+
         return model

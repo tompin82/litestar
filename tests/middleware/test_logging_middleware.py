@@ -47,7 +47,7 @@ def test_logging_middleware_regular_logger(get_logger: "GetLogger", caplog: "Log
         client.cookies = {"request-cookie": "abc"}  # type: ignore
         response = client.get("/", headers={"request-header": "1"})
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 2
+        assert len(caplog.messages) == 3
 
         assert (
             caplog.messages[0] == 'HTTP Request: path=/, method=GET, content_type=["",{}], '
@@ -114,11 +114,11 @@ def test_logging_middleware_exclude_pattern(get_logger: "GetLogger", caplog: "Lo
 
         response = client.get("/exclude")
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 0
+        assert len(caplog.messages) == 1
 
         response = client.get("/")
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 2
+        assert len(caplog.messages) == 4
 
 
 def test_logging_middleware_exclude_opt_key(get_logger: "GetLogger", caplog: "LogCaptureFixture") -> None:
@@ -136,11 +136,11 @@ def test_logging_middleware_exclude_opt_key(get_logger: "GetLogger", caplog: "Lo
 
         response = client.get("/exclude")
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 0
+        assert len(caplog.messages) == 1
 
         response = client.get("/")
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 2
+        assert len(caplog.messages) == 4
 
 
 @pytest.mark.parametrize("include", [True, False])
@@ -157,7 +157,7 @@ def test_logging_middleware_compressed_response_body(
         client.app.get_logger = get_logger
         response = client.get("/", headers={"request-header": "1"})
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 2
+        assert len(caplog.messages) == 3
         if include:
             assert "body=" in caplog.messages[1]
         else:
@@ -197,7 +197,7 @@ def test_logging_messages_are_not_doubled(
         client.app.get_logger = get_logger
         response = client.get("/")
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 2
+        assert len(caplog.messages) == 3
 
 
 def test_logging_middleware_log_fields(get_logger: "GetLogger", caplog: "LogCaptureFixture") -> None:
@@ -212,7 +212,7 @@ def test_logging_middleware_log_fields(get_logger: "GetLogger", caplog: "LogCapt
         client.cookies = {"request-cookie": "abc"}  # type: ignore
         response = client.get("/", headers={"request-header": "1"})
         assert response.status_code == HTTP_200_OK
-        assert len(caplog.messages) == 2
+        assert len(caplog.messages) == 3
 
         assert caplog.messages[0] == "HTTP Request: path=/"
         assert caplog.messages[1] == "HTTP Response: status_code=200"

@@ -8,6 +8,8 @@ API reference
 
     app
     background_tasks
+    channels/index
+    cli
     config
     connection
     contrib/index
@@ -27,14 +29,15 @@ API reference
     params
     partial
     plugins
-    response
-    response_containers
+    response/index
     router
+    routes
     security/index
     serialization
     static_files
-    stores/index
     status_codes
+    stores/index
     template
     testing
     types
+    typing
